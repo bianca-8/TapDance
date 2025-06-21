@@ -54,34 +54,58 @@ def is_body_part_in_circle(body_part_x, body_part_y, circle_x, circle_y, radius,
 
 def display_menu():
     font = cv2.FONT_HERSHEY_SIMPLEX
+
+    # Define button rectangles: (x, y, width, height)
+    button_start = (220, 220, 200, 50)
+    button_leaderboard = (220, 300, 200, 50)
+    button_quit = (220, 380, 200, 50)
+
+    choice = None
+
+    def mouse_callback(event, x, y, flags, param):
+        nonlocal choice
+        if event == cv2.EVENT_LBUTTONDOWN:
+            if button_start[0] <= x <= button_start[0] + button_start[2] and button_start[1] <= y <= button_start[1] + button_start[3]:
+                choice = "start"
+            elif button_leaderboard[0] <= x <= button_leaderboard[0] + button_leaderboard[2] and button_leaderboard[1] <= y <= button_leaderboard[1] + button_leaderboard[3]:
+                choice = "leaderboard"
+            elif button_quit[0] <= x <= button_quit[0] + button_quit[2] and button_quit[1] <= y <= button_quit[1] + button_quit[3]:
+                choice = "quit"
+
+    cv2.namedWindow('Menu')
+    cv2.setMouseCallback('Menu', mouse_callback)
+
     while True:
         frame = 255 * np.ones(shape=[600, 640, 3], dtype=np.uint8)
 
+        # Title text
         menu_text = "Dance Game"
-        instructions = "Press 'S' to Start"
-        leaderboard = "Press 'L' to View Leaderboard"
-        quit_text = "Press 'Q' to Quit"
-
         (w1, h1) = cv2.getTextSize(menu_text, font, 1.5, 2)[0]
-        (w2, h2) = cv2.getTextSize(instructions, font, 1, 2)[0]
-        (w3, h3) = cv2.getTextSize(leaderboard, font, 1, 2)[0]
-        (w4, h4) = cv2.getTextSize(quit_text, font, 1, 2)[0]
+        cv2.putText(frame, menu_text, (int((640 - w1) / 2), 150), font, 1.5, (0, 0, 0), 2, cv2.LINE_AA)
 
-        cv2.putText(frame, menu_text, (int((640-w1)/2), 150), font, 1.5, (0, 0, 0), 2, cv2.LINE_AA)
-        cv2.putText(frame, instructions, (int((640-w2)/2), 250), font, 1, (0, 0, 0), 2, cv2.LINE_AA)
-        cv2.putText(frame, leaderboard, (int((640-w3)/2), 350), font, 1, (0, 0, 0), 2, cv2.LINE_AA)
-        cv2.putText(frame, quit_text, (int((640-w4)/2), 450), font, 1, (0, 0, 0), 2, cv2.LINE_AA)
+        # Draw buttons rectangles and text
+        cv2.rectangle(frame, (button_start[0], button_start[1]), (button_start[0] + button_start[2], button_start[1] + button_start[3]), (0, 255, 0), -1)
+        cv2.putText(frame, "Start", (button_start[0] + 70, button_start[1] + 35), font, 1, (255, 255, 255), 2)
+
+        cv2.rectangle(frame, (button_leaderboard[0], button_leaderboard[1]), (button_leaderboard[0] + button_leaderboard[2], button_leaderboard[1] + button_leaderboard[3]), (255, 0, 0), -1)
+        cv2.putText(frame, "Leaderboard", (button_leaderboard[0] + 30, button_leaderboard[1] + 35), font, 1, (255, 255, 255), 2)
+
+        cv2.rectangle(frame, (button_quit[0], button_quit[1]), (button_quit[0] + button_quit[2], button_quit[1] + button_quit[3]), (0, 0, 255), -1)
+        cv2.putText(frame, "Quit", (button_quit[0] + 80, button_quit[1] + 35), font, 1, (255, 255, 255), 2)
 
         cv2.imshow('Menu', frame)
-        
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord('s'):
-            return "start"
-        elif key == ord('q'):
+
+        if choice is not None:
+            cv2.destroyWindow('Menu')
+            if choice == "quit":
+                cv2.destroyAllWindows()
+                exit()
+            return choice
+
+        key = cv2.waitKey(20) & 0xFF
+        if key == 27:  # ESC key also quits
             cv2.destroyAllWindows()
             exit()
-        elif key == ord('l'):
-            return "leaderboard"
 
 def display_leaderboard():
     font = cv2.FONT_HERSHEY_SIMPLEX
