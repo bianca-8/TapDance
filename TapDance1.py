@@ -141,18 +141,12 @@ def display_leaderboard():
             lines = ["Leaderboard", "No leaderboard data yet."]
 
         # Display leaderboard text
-        y_position = 130
+        y_position = 150
         for line in lines:
             (text_width, text_height), _ = cv2.getTextSize(line.strip(), font, 0.7, 2)
             x_position = (MACBOOK_WIDTH - text_width) // 2
             cv2.putText(frame, line.strip(), (x_position, y_position), font, 0.7, (0, 0, 0), 2, cv2.LINE_AA)
-            y_position += 30
-
-        # Draw Back button
-        cv2.rectangle(frame, (button_back[0], button_back[1]),
-                             (button_back[0] + button_back[2], button_back[1] + button_back[3]),
-                             (100, 100, 255), -1)
-        cv2.putText(frame, "Back", (button_back[0] + 60, button_back[1] + 35), font, 1, (255, 255, 255), 2)
+            y_position += 29
 
         cv2.imshow('Leaderboard', frame)
 
@@ -176,27 +170,26 @@ def capture_player_name(frame):
     max_length = 20
     frame_width, frame_height = frame.shape[1], frame.shape[0]
 
+    input_bg = cv2.imread('input.jpg')
+    input_bg = cv2.resize(input_bg, (MACBOOK_WIDTH, MACBOOK_HEIGHT))
+
     cv2.namedWindow("Enter Name")
 
     while True:
-        frame_copy = frame.copy()
+        frame = input_bg.copy()
 
-        # Draw input box
+        # Box dimensions
         box_x1, box_y1 = 100, 150
         box_x2, box_y2 = frame_width - 100, 250
-        cv2.rectangle(frame_copy, (box_x1, box_y1), (box_x2, box_y2), (220, 220, 220), -1)
-
-        # Prompt text
-        cv2.putText(frame_copy, "Enter your name:", (box_x1 + 10, box_y1 + 50), font, 1, (0, 0, 0), 2, cv2.LINE_AA)
 
         # Current input text
-        cv2.putText(frame_copy, name, (box_x1 + 10, box_y1 + 110), font, 1, (0, 0, 0), 2, cv2.LINE_AA)
+        cv2.putText(frame, name, (box_x1 + 10, box_y1 + 110), font, 1, (0, 0, 0), 2, cv2.LINE_AA)
 
         # Warning if empty
         if name.strip() == "":
-            cv2.putText(frame_copy, "Name cannot be empty", (box_x1 + 10, box_y2 + 40), font, 0.7, (0, 0, 255), 2, cv2.LINE_AA)
+            cv2.putText(frame, "Name cannot be empty", (box_x1 + 10, box_y2 + 40), font, 0.7, (0, 0, 255), 2, cv2.LINE_AA)
 
-        cv2.imshow("Enter Name", frame_copy)
+        cv2.imshow("Enter Name", frame)
 
         key = cv2.waitKey(1) & 0xFF
         if key == 13:  # Enter
@@ -223,21 +216,20 @@ def capture_game_duration(frame):
 
     cv2.namedWindow("Enter Duration")
 
+    dur_bg = cv2.imread('duration.jpg')
+    dur_bg = cv2.resize(dur_bg, (MACBOOK_WIDTH, MACBOOK_HEIGHT))
+
     while True:
-        frame_copy = frame.copy()
+        frame = dur_bg.copy()
 
         # Input box
         box_x1, box_y1 = 100, 150
         box_x2, box_y2 = frame_width - 100, 250
-        cv2.rectangle(frame_copy, (box_x1, box_y1), (box_x2, box_y2), (220, 220, 220), -1)
-
-        # Prompt text
-        cv2.putText(frame_copy, "Enter game duration (seconds):", (box_x1 + 10, box_y1 + 50), font, 0.9, (0, 0, 0), 2, cv2.LINE_AA)
 
         # Current input
-        cv2.putText(frame_copy, duration_str, (box_x1 + 10, box_y1 + 110), font, 1, (0, 0, 0), 2, cv2.LINE_AA)
+        cv2.putText(frame, duration_str, (box_x1 + 10, box_y1 + 110), font, 1, (0, 0, 0), 2, cv2.LINE_AA)
 
-        cv2.imshow("Enter Duration", frame_copy)
+        cv2.imshow("Enter Duration", frame)
 
         key = cv2.waitKey(1) & 0xFF
         if key == 13:
@@ -389,7 +381,10 @@ def main():
             elapsed_time = int(time.time() - start_time)
             remaining_time = max(0, game_duration - elapsed_time)
 
-            cv2.rectangle(image, (10, 10), (180, 110), (255, 255, 255), -1)
+            cor_bg = cv2.imread('corner.png')
+            cor_bg = cv2.resize(cor_bg, (170, 100))
+            image[10:10+100, 10:10+170] = cor_bg
+
             cv2.putText(image, f"Time: {remaining_time}s", (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2)
             cv2.putText(image, f"Score: {score}", (20, 90), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2)
 
@@ -419,27 +414,17 @@ def main():
             cv2.imshow('Dance Game', image)
 
         else:
+            end_bg = cv2.imread('end.jpg')
+            end_bg = cv2.resize(end_bg, (MACBOOK_WIDTH, MACBOOK_HEIGHT))
+
             # Game Over screen
-            frame = 255 * np.ones(shape=[MACBOOK_HEIGHT, MACBOOK_WIDTH, 3], dtype=np.uint8)
-            cv2.putText(frame, "Game Over!", (180, 150), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 4)
+            frame = end_bg.copy()
             cv2.putText(frame, f"Score: {score}", (220, 250), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2)
             cv2.putText(frame, f"Rank: #{rank if rank else 'N/A'}", (220, 300), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2)
 
             # Draw Exit and Home buttons
             button_home = (490, 360, 300, 80)
             button_exit = (490, 500, 300, 80)
-
-            cv2.rectangle(frame, (button_exit[0], button_exit[1]),
-                                (button_exit[0] + button_exit[2], button_exit[1] + button_exit[3]),
-                                (0, 0, 255), -1)
-            cv2.putText(frame, "Exit", (button_exit[0] + 60, button_exit[1] + 35),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-
-            cv2.rectangle(frame, (button_home[0], button_home[1]),
-                                (button_home[0] + button_home[2], button_home[1] + button_home[3]),
-                                (0, 255, 0), -1)
-            cv2.putText(frame, "Home", (button_home[0] + 50, button_home[1] + 35),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
 
             def mouse_callback(event, x, y, flags, param):
                 if event == cv2.EVENT_LBUTTONDOWN:

@@ -1,9 +1,6 @@
-bianca: 3
 bianca: 13
 owen: 7
 michcael: 11
 hamburger: 6
-shayaan: 15a: 0
-: 0
-a: 0
-a: 0
+shayaan: 0
+haha: 0
