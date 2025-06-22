@@ -3,6 +3,15 @@ import mediapipe as mp
 import random
 import time
 import numpy as np
+import pygame
+
+# Music
+pygame.mixer.init()
+pygame.mixer.music.load('background_music.mp3')
+pygame.mixer.music.set_volume(0.5)  # volume 0.0 to 1.0
+pygame.mixer.music.play(-1)  # -1 loops the music indefinitely
+quack = pygame.mixer.Sound('quack.mp3')
+fail = pygame.mixer.Sound('fail.mp3')
 
 # MediaPipe initialization
 mp_drawing = mp.solutions.drawing_utils
@@ -21,6 +30,46 @@ start_time = 0
 game_duration = 120
 MACBOOK_WIDTH = 1280
 MACBOOK_HEIGHT = 720
+
+# Duck images
+duck_img_right = cv2.imread('duck_red.png', cv2.IMREAD_UNCHANGED)  # Duck for right hand
+duck_img_left = cv2.imread('duck_green.png', cv2.IMREAD_UNCHANGED)  # Duck for left hand
+duck_img_yellow = cv2.imread('duck_yellow.png', cv2.IMREAD_UNCHANGED)
+duck_img_blue = cv2.imread('duck_blue.png', cv2.IMREAD_UNCHANGED)
+
+duck_size = 60  # Adjust size as needed
+duck_img_right = cv2.resize(duck_img_right, (duck_size, duck_size))
+duck_img_left = cv2.resize(duck_img_left, (duck_size, duck_size))
+duck_img_yellow = cv2.resize(duck_img_yellow, (duck_size, duck_size))
+duck_img_blue = cv2.resize(duck_img_blue, (duck_size, duck_size))
+
+# Fire images
+red_fire_img = cv2.imread('fire_red.png', cv2.IMREAD_UNCHANGED)
+green_fire_img = cv2.imread('fire_green.png', cv2.IMREAD_UNCHANGED)
+yellow_fire_img = cv2.imread('fire_yellow.png', cv2.IMREAD_UNCHANGED)
+blue_fire_img = cv2.imread('fire_blue.png', cv2.IMREAD_UNCHANGED)
+
+fire_size = 60  # same as duck size or whatever you want
+red_fire_img = cv2.resize(red_fire_img, (fire_size, fire_size))
+green_fire_img = cv2.resize(green_fire_img, (fire_size, fire_size))
+yellow_fire_img = cv2.resize(yellow_fire_img, (fire_size, fire_size))
+blue_fire_img = cv2.resize(blue_fire_img, (fire_size, fire_size))
+
+def overlay_image_alpha(img, overlay, pos):
+    x, y = pos
+    h, w = overlay.shape[0], overlay.shape[1]
+
+    # Ensure image is within bounds
+    if y + h > img.shape[0] or x + w > img.shape[1] or x < 0 or y < 0:
+        return img  # Skip if out of bounds
+
+    alpha_overlay = overlay[:, :, 3] / 255.0
+    alpha_background = 1.0 - alpha_overlay
+
+    for c in range(3):
+        img[y:y+h, x:x+w, c] = (alpha_overlay * overlay[:, :, c] +
+                                alpha_background * img[y:y+h, x:x+w, c])
+    return img
 
 def display_menu():
     font = cv2.FONT_HERSHEY_SIMPLEX
@@ -60,12 +109,14 @@ def display_menu():
         if choice is not None:
             cv2.destroyWindow('Menu')
             if choice == "quit":
+                pygame.mixer.music.stop()
                 cv2.destroyAllWindows()
                 exit()
             return choice
 
         key = cv2.waitKey(20) & 0xFF
         if key == 27:  # ESC key also quits
+            pygame.mixer.music.stop()
             cv2.destroyAllWindows()
             exit()
 
@@ -92,6 +143,8 @@ def display_game_over_screen(score, rank):
     cv2.namedWindow("Game Over")
     cv2.setMouseCallback("Game Over", mouse_callback)
 
+    fail.play()
+
     while True:
         frame = end_bg.copy()
         cv2.putText(frame, f"Score: {score}", (490, 260), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 0), 2)
@@ -101,6 +154,7 @@ def display_game_over_screen(score, rank):
 
         if choice == "exit":
             cv2.destroyAllWindows()
+            pygame.mixer.music.stop()
             exit()
         elif choice == "home":
             cv2.destroyWindow("Game Over")
@@ -108,6 +162,7 @@ def display_game_over_screen(score, rank):
 
         if cv2.waitKey(20) & 0xFF == 27:
             cv2.destroyAllWindows()
+            pygame.mixer.music.stop()
             exit()
 
 def capture_player_name(frame):
@@ -359,19 +414,30 @@ def run_hands_only_mode():
             right_x, right_y = int(right_hand.x * w), int(right_hand.y * h)
             left_x, left_y = int(left_hand.x * w), int(left_hand.y * h)
 
-            # Draw filled target circles for hands
-            cv2.circle(image, hand_circles[0], circle_radius, (0, 0, 255), -1)  # Solid red circle for right hand target
-            cv2.circle(image, hand_circles[1], circle_radius, (0, 255, 0), -1)  # Solid green circle for left hand target
+           # Right hand duck target
+            x1, y1 = hand_circles[0][0] - duck_size // 2, hand_circles[0][1] - duck_size // 2
+            image = overlay_image_alpha(image, duck_img_right, (x1, y1))
+
+            # Left hand duck target
+            x2, y2 = hand_circles[1][0] - duck_size // 2, hand_circles[1][1] - duck_size // 2
+            image = overlay_image_alpha(image, duck_img_left, (x2, y2))
 
             # Draw outlined circles on actual detected hand positions
-            cv2.circle(image, (right_x, right_y), hand_circle_radius, (0, 0, 255), -1)  # Red outline for right hand
-            cv2.circle(image, (left_x, left_y), hand_circle_radius, (0, 255, 0), -1)    # Green outline for left hand
+            x_fire = right_x - fire_size // 2
+            y_fire = right_y - fire_size // 2
+            image = overlay_image_alpha(image, red_fire_img, (x_fire, y_fire))
+
+            # Similarly for left hand:
+            x_fire = left_x - fire_size // 2
+            y_fire = left_y - fire_size // 2
+            image = overlay_image_alpha(image, green_fire_img, (x_fire, y_fire))
 
             # Check hits for hands: Right hand hits hand_circles[0], Left hand hits hand_circles[1]
             right_hit = is_body_part_in_circle(right_x, right_y, hand_circles[0][0], hand_circles[0][1], circle_radius, hitbox_scale_factor)
             left_hit = is_body_part_in_circle(left_x, left_y, hand_circles[1][0], hand_circles[1][1], circle_radius, hitbox_scale_factor)
 
             if right_hit and left_hit:
+                quack.play()
                 score += 1
                 hand_circles = [get_random_position(w, h), get_random_position(w, h)]  # move circles
 
@@ -465,21 +531,40 @@ def run_hands_and_feet_mode():
             right_knee_x, right_knee_y = int(right_knee.x * w), int(right_knee.y * h)
             left_knee_x, left_knee_y = int(left_knee.x * w), int(left_knee.y * h)
 
-            # Draw circles for hands
-            cv2.circle(image, (left_x, left_y), hand_circle_radius, (0, 255, 0), -1)  # Left hand green
-            cv2.circle(image, (right_x, right_y), hand_circle_radius, (0, 0, 255), -1)  # Right hand red
+            # Right hand duck target
+            x1, y1 = hand_circles[0][0] - duck_size // 2, hand_circles[0][1] - duck_size // 2
+            image = overlay_image_alpha(image, duck_img_right, (x1, y1))
+
+            # Left hand duck target
+            x2, y2 = hand_circles[1][0] - duck_size // 2, hand_circles[1][1] - duck_size // 2
+            image = overlay_image_alpha(image, duck_img_left, (x2, y2))
 
             # Draw the knee target circles:
-            cv2.circle(image, left_knee_circle, knee_circle_radius, (0, 255, 255), -1)  # Yellow for left knee target
-            cv2.circle(image, right_knee_circle, knee_circle_radius, (255, 0, 0), -1)   # Blue for right knee target
+            # Draw duck images for knee targets using overlay_image_alpha
+            x, y = left_knee_circle[0] - duck_size // 2, left_knee_circle[1] - duck_size // 2
+            image = overlay_image_alpha(image, duck_img_yellow, (x, y))
 
-            # Draw player's feet (optional, you can comment these out if distracting)
-            cv2.circle(image, (left_knee_x, left_knee_y), knee_circle_radius//2, (0, 255, 255), -1)  # Player's left knee yellow
-            cv2.circle(image, (right_knee_x, right_knee_y), knee_circle_radius//2, (255, 0, 0), -1)  # Player's right knee blue
+            x, y = right_knee_circle[0] - duck_size // 2, right_knee_circle[1] - duck_size // 2
+            image = overlay_image_alpha(image, duck_img_blue, (x, y))
 
-            for i, (x, y) in enumerate(hand_circles):
-                color = (0, 255, 0) if i == 1 else (0, 0, 255)
-                cv2.circle(image, (x, y), circle_radius, color, -1)
+            # Draw player's feet
+            x_fire = right_knee_x - fire_size // 2
+            y_fire = right_knee_y - fire_size // 2
+            image = overlay_image_alpha(image, blue_fire_img, (x_fire, y_fire))
+
+            x_fire = left_knee_x - fire_size // 2
+            y_fire = left_knee_y - fire_size // 2
+            image = overlay_image_alpha(image, yellow_fire_img, (x_fire, y_fire))
+
+            # Draw hand targets
+            x_fire = right_x - fire_size // 2
+            y_fire = right_y - fire_size // 2
+            image = overlay_image_alpha(image, red_fire_img, (x_fire, y_fire))
+
+            # Similarly for left hand:
+            x_fire = left_x - fire_size // 2
+            y_fire = left_y - fire_size // 2
+            image = overlay_image_alpha(image, green_fire_img, (x_fire, y_fire))
 
             # Check hits for hands
             left_hit = is_body_part_in_circle(left_x, left_y, hand_circles[1][0], hand_circles[1][1], circle_radius, hitbox_scale_factor)
@@ -490,6 +575,7 @@ def run_hands_and_feet_mode():
             right_knee_hit = is_body_part_in_circle(right_knee_x, right_knee_y, right_knee_circle[0], right_knee_circle[1], knee_circle_radius, knee_hitbox_scale_factor)
 
             if left_hit and right_hit and left_knee_hit and right_knee_hit:
+                quack.play()
                 score += 1
                 hand_circles = [get_random_position(w, h), get_random_position(w, h)]
                 left_knee_circle = get_random_knee_position(w, h)
@@ -545,6 +631,7 @@ def main():
         elif choice == "leaderboard":
             display_leaderboard()
         else:
+            pygame.mixer.music.stop()
             break
 
 if __name__ == "__main__":
