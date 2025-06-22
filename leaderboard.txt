@@ -1,6 +1,6 @@
-bianca: 13
-owen: 7
-michcael: 11
-hamburger: 6
-shayaan: 0
-haha: 0
+bianca: 13, Mode 1, Duration: 100s
+owen: 7, Mode 1, Duration: 100s
+michcael: 11, Mode 1, Duration: 100s
+hamburger: 6, Mode 1, Duration: 100s
+shayaan: 0, Mode 1, Duration: 100s
+haha: 0, Mode 1, Duration: 100s
