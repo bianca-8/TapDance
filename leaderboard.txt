@@ -1,6 +1,9 @@
-bianca: 13, Mode 1, Duration: 100s
-owen: 7, Mode 1, Duration: 100s
-michcael: 11, Mode 1, Duration: 100s
-hamburger: 6, Mode 1, Duration: 100s
-shayaan: 0, Mode 1, Duration: 100s
-haha: 0, Mode 1, Duration: 100s
+bianca: 13, Mode 1, Duration: 20s
+owen: 7, Mode 1, Duration: 20s
+michcael: 11, Mode 1, Duration: 20s
+hamburger: 6, Mode 1, Duration: 20s
+shayaan: 0, Mode 1, Duration: 20s
+haha: 0, Mode 1, Duration: 20s
+eddyer: 4, Mode: 1, Duration: 50s
+eee: 2, Mode: 2, Duration: 50s
+sam: 1, Mode: 1, Duration: 50s

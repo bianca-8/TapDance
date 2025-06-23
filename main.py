@@ -2,107 +2,108 @@ import cv2
 import mediapipe as mp
 import random
 import time
-import numpy as np
 import pygame
 
-# Music
+# music
 pygame.mixer.init()
-pygame.mixer.music.load('background_music.mp3')
+pygame.mixer.music.load('backgroundMusic.mp3')
 pygame.mixer.music.set_volume(0.5)  # volume 0.0 to 1.0
-pygame.mixer.music.play(-1)  # -1 loops the music indefinitely
+pygame.mixer.music.play(-1)  # loop music
 quack = pygame.mixer.Sound('quack.mp3')
 fail = pygame.mixer.Sound('fail.mp3')
 
-# MediaPipe initialization
-mp_drawing = mp.solutions.drawing_utils
-mp_pose = mp.solutions.pose
+# mediapipe initialization
+mpDrawing = mp.solutions.drawing_utils
+mpPose = mp.solutions.pose
 
-# Circle properties
-circle_radius = 30
-hand_circle_radius = 30
-hitbox_scale_factor = 5
-min_edge_distance = 50
-knee_circle_radius = 30
-knee_hitbox_scale_factor = 1.5
+# circle properties
+circleRadius = 30
+hitboxScaleFactor = 5
+minEdgeDistance = 50
+kneeCircleRadius = 30
+kneeHitboxScaleFactor = 1.5
 
+# game variables
 score = 0
-start_time = 0
-game_duration = 120
+startTime = 0
+duration = 120
 MACBOOK_WIDTH = 1280
 MACBOOK_HEIGHT = 720
 
-# Duck images
-duck_img_right = cv2.imread('duck_red.png', cv2.IMREAD_UNCHANGED)  # Duck for right hand
-duck_img_left = cv2.imread('duck_green.png', cv2.IMREAD_UNCHANGED)  # Duck for left hand
-duck_img_yellow = cv2.imread('duck_yellow.png', cv2.IMREAD_UNCHANGED)
-duck_img_blue = cv2.imread('duck_blue.png', cv2.IMREAD_UNCHANGED)
+# duck images
+duckRight = cv2.imread('duckRed.png', cv2.IMREAD_UNCHANGED)  # duck for right hand
+duckLeft = cv2.imread('duckGreen.png', cv2.IMREAD_UNCHANGED)  # duck for left hand
+duckYellow = cv2.imread('duckYellow.png', cv2.IMREAD_UNCHANGED)
+duckBlue = cv2.imread('duckBlue.png', cv2.IMREAD_UNCHANGED)
 
-duck_size = 60  # Adjust size as needed
-duck_img_right = cv2.resize(duck_img_right, (duck_size, duck_size))
-duck_img_left = cv2.resize(duck_img_left, (duck_size, duck_size))
-duck_img_yellow = cv2.resize(duck_img_yellow, (duck_size, duck_size))
-duck_img_blue = cv2.resize(duck_img_blue, (duck_size, duck_size))
+duckSize = 60
+duckRight = cv2.resize(duckRight, (duckSize, duckSize))
+duckLeft = cv2.resize(duckLeft, (duckSize, duckSize))
+duckYellow = cv2.resize(duckYellow, (duckSize, duckSize))
+duckBlue = cv2.resize(duckBlue, (duckSize, duckSize))
 
-# Fire images
-red_fire_img = cv2.imread('fire_red.png', cv2.IMREAD_UNCHANGED)
-green_fire_img = cv2.imread('fire_green.png', cv2.IMREAD_UNCHANGED)
-yellow_fire_img = cv2.imread('fire_yellow.png', cv2.IMREAD_UNCHANGED)
-blue_fire_img = cv2.imread('fire_blue.png', cv2.IMREAD_UNCHANGED)
+# fire images
+redFire = cv2.imread('fireRed.png', cv2.IMREAD_UNCHANGED)
+greenFire = cv2.imread('fireGreen.png', cv2.IMREAD_UNCHANGED)
+yellowFire = cv2.imread('fireYellow.png', cv2.IMREAD_UNCHANGED)
+blueFire = cv2.imread('fireBlue.png', cv2.IMREAD_UNCHANGED)
 
-fire_size = 60  # same as duck size or whatever you want
-red_fire_img = cv2.resize(red_fire_img, (fire_size, fire_size))
-green_fire_img = cv2.resize(green_fire_img, (fire_size, fire_size))
-yellow_fire_img = cv2.resize(yellow_fire_img, (fire_size, fire_size))
-blue_fire_img = cv2.resize(blue_fire_img, (fire_size, fire_size))
+fireSize = 60 # same as duck size
+redFire = cv2.resize(redFire, (fireSize, fireSize))
+greenFire = cv2.resize(greenFire, (fireSize, fireSize))
+yellowFire = cv2.resize(yellowFire, (fireSize, fireSize))
+blueFire = cv2.resize(blueFire, (fireSize, fireSize))
 
-def overlay_image_alpha(img, overlay, pos):
+# function to overlay an image
+def overlayImage(img, overlay, pos):
     x, y = pos
     h, w = overlay.shape[0], overlay.shape[1]
 
-    # Ensure image is within bounds
+    # check if image within bounds
     if y + h > img.shape[0] or x + w > img.shape[1] or x < 0 or y < 0:
-        return img  # Skip if out of bounds
+        return img  # skip if out of bounds
 
-    alpha_overlay = overlay[:, :, 3] / 255.0
-    alpha_background = 1.0 - alpha_overlay
+    alphaOverlay = overlay[:, :, 3] / 255.0
+    alphaBg = 1.0 - alphaOverlay
 
     for c in range(3):
-        img[y:y+h, x:x+w, c] = (alpha_overlay * overlay[:, :, c] +
-                                alpha_background * img[y:y+h, x:x+w, c])
+        img[y:y+h, x:x+w, c] = (alphaOverlay * overlay[:, :, c] +
+                                alphaBg * img[y:y+h, x:x+w, c])
     return img
 
-def display_menu():
-    font = cv2.FONT_HERSHEY_SIMPLEX
+# function to display the menu
+def displayMenu():
 
-    # Define button rectangles: (x, y, width, height)
-    button_hands_only = (490, 190, 300, 80)
-    button_hands_and_feet = (490, 290, 300, 80)
-    button_leaderboard = (490, 390, 300, 80)
-    button_quit = (490, 490, 300, 80)
+    # button rectangles (x, y, width, height)
+    buttonHandsOnly = (490, 190, 300, 80)
+    buttonHandsFeet = (490, 290, 300, 80)
+    buttonLeaderboard = (490, 390, 300, 80)
+    buttonQuit = (490, 490, 300, 80)
 
     choice = None
 
-    def mouse_callback(event, x, y, flags, param):
+    # function to check mouse clicks on buttons
+    def mouseCallback(event, x, y, flags, param):
         nonlocal choice
         if event == cv2.EVENT_LBUTTONDOWN:
-            if button_hands_only[0] <= x <= button_hands_only[0] + button_hands_only[2] and button_hands_only[1] <= y <= button_hands_only[1] + button_hands_only[3]:
-                choice = "hands_only"
-            elif button_hands_and_feet[0] <= x <= button_hands_and_feet[0] + button_hands_and_feet[2] and button_hands_and_feet[1] <= y <= button_hands_and_feet[1] + button_hands_and_feet[3]:
-                choice = "hands_and_feet"
-            elif button_leaderboard[0] <= x <= button_leaderboard[0] + button_leaderboard[2] and button_leaderboard[1] <= y <= button_leaderboard[1] + button_leaderboard[3]:
+            if buttonHandsOnly[0] <= x <= buttonHandsOnly[0] + buttonHandsOnly[2] and buttonHandsOnly[1] <= y <= buttonHandsOnly[1] + buttonHandsOnly[3]:
+                choice = "handsOnly"
+            elif buttonHandsFeet[0] <= x <= buttonHandsFeet[0] + buttonHandsFeet[2] and buttonHandsFeet[1] <= y <= buttonHandsFeet[1] + buttonHandsFeet[3]:
+                choice = "handsFeet"
+            elif buttonLeaderboard[0] <= x <= buttonLeaderboard[0] + buttonLeaderboard[2] and buttonLeaderboard[1] <= y <= buttonLeaderboard[1] + buttonLeaderboard[3]:
                 choice = "leaderboard"
-            elif button_quit[0] <= x <= button_quit[0] + button_quit[2] and button_quit[1] <= y <= button_quit[1] + button_quit[3]:
+            elif buttonQuit[0] <= x <= buttonQuit[0] + buttonQuit[2] and buttonQuit[1] <= y <= buttonQuit[1] + buttonQuit[3]:
                 choice = "quit"
 
     cv2.namedWindow('Menu')
     cv2.resizeWindow('Menu', MACBOOK_WIDTH, MACBOOK_HEIGHT)
-    cv2.setMouseCallback('Menu', mouse_callback)
+    cv2.setMouseCallback('Menu', mouseCallback)
 
-    menu_bg = cv2.imread('menu.jpg')
-    menu_bg = cv2.resize(menu_bg, (MACBOOK_WIDTH, MACBOOK_HEIGHT))
+    menuBg = cv2.imread('menu.jpg')
+    menuBg = cv2.resize(menuBg, (MACBOOK_WIDTH, MACBOOK_HEIGHT))
 
     while True:
-        frame = menu_bg.copy()
+        frame = menuBg.copy()
 
         cv2.imshow('Menu', frame)
 
@@ -115,38 +116,35 @@ def display_menu():
             return choice
 
         key = cv2.waitKey(20) & 0xFF
-        if key == 27:  # ESC key also quits
+        if key == 27:  # ESC key to quit
             pygame.mixer.music.stop()
             cv2.destroyAllWindows()
             exit()
 
-def add_to_leaderboard(name, score):
-    with open('leaderboard.txt', 'a') as file:
-        file.write(f"{name}: {score}\n")
+# function to display the game over screen
+def displayGameOver(score, rank):
+    endBg = cv2.imread('end.jpg')
+    endBg = cv2.resize(endBg, (MACBOOK_WIDTH, MACBOOK_HEIGHT))
 
-def display_game_over_screen(score, rank):
-    end_bg = cv2.imread('end.jpg')
-    end_bg = cv2.resize(end_bg, (MACBOOK_WIDTH, MACBOOK_HEIGHT))
-
-    button_home = (490, 360, 300, 80)
-    button_exit = (490, 500, 300, 80)
+    buttonHome = (490, 360, 300, 80)
+    buttonExit = (490, 500, 300, 80)
     choice = None
 
-    def mouse_callback(event, x, y, flags, param):
+    def mouseCallback(event, x, y, flags, param):
         nonlocal choice
         if event == cv2.EVENT_LBUTTONDOWN:
-            if button_exit[0] <= x <= button_exit[0] + button_exit[2] and button_exit[1] <= y <= button_exit[1] + button_exit[3]:
+            if buttonExit[0] <= x <= buttonExit[0] + buttonExit[2] and buttonExit[1] <= y <= buttonExit[1] + buttonExit[3]:
                 choice = "exit"
-            elif button_home[0] <= x <= button_home[0] + button_home[2] and button_home[1] <= y <= button_home[1] + button_home[3]:
+            elif buttonHome[0] <= x <= buttonHome[0] + buttonHome[2] and buttonHome[1] <= y <= buttonHome[1] + buttonHome[3]:
                 choice = "home"
 
     cv2.namedWindow("Game Over")
-    cv2.setMouseCallback("Game Over", mouse_callback)
+    cv2.setMouseCallback("Game Over", mouseCallback)
 
     fail.play()
 
     while True:
-        frame = end_bg.copy()
+        frame = endBg.copy()
         cv2.putText(frame, f"Score: {score}", (490, 260), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 0), 2)
         cv2.putText(frame, f"Rank: #{rank if rank else 'N/A'}", (490, 320), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 0), 2)
 
@@ -158,145 +156,86 @@ def display_game_over_screen(score, rank):
             exit()
         elif choice == "home":
             cv2.destroyWindow("Game Over")
-            return  # Go back to main()
+            return  # go back to main()
 
         if cv2.waitKey(20) & 0xFF == 27:
             cv2.destroyAllWindows()
             pygame.mixer.music.stop()
             exit()
 
-def capture_player_name(frame):
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    name = ""
-    max_length = 20
-    frame_width, frame_height = frame.shape[1], frame.shape[0]
-    input_bg = cv2.imread('input.jpg')
-    input_bg = cv2.resize(input_bg, (MACBOOK_WIDTH, MACBOOK_HEIGHT))
-    cv2.namedWindow("Enter Name")
-
-    while True:
-        frame = input_bg.copy()
-        box_x1, box_y1 = 100, 150
-        box_x2, box_y2 = frame_width - 100, 250
-        cv2.putText(frame, name, (box_x1 + 10, box_y1 + 110), font, 1, (0, 0, 0), 2)
-
-        if name.strip() == "":
-            cv2.putText(frame, "Name cannot be empty", (box_x1 + 10, box_y2 + 40), font, 0.7, (0, 0, 255), 2)
-
-        cv2.imshow("Enter Name", frame)
-
-        key = cv2.waitKey(1) & 0xFF
-        if key == 13 and name.strip() != "":
-            break
-        elif key in (8, 127):
-            name = name[:-1]
-        elif len(name) < max_length and 32 <= key <= 126:
-            name += chr(key)
-
-    cv2.destroyWindow("Enter Name")
-    return name.strip()
-
-def capture_game_duration(frame):
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    duration_str = ""
-    max_length = 4
-    frame_width, frame_height = frame.shape[1], frame.shape[0]
-    dur_bg = cv2.imread('duration.jpg')
-    dur_bg = cv2.resize(dur_bg, (MACBOOK_WIDTH, MACBOOK_HEIGHT))
-    cv2.namedWindow("Enter Duration")
-
-    while True:
-        frame = dur_bg.copy()
-        box_x1, box_y1 = 100, 150
-        box_x2, box_y2 = frame_width - 100, 250
-        cv2.putText(frame, duration_str, (box_x1 + 10, box_y1 + 110), font, 1, (0, 0, 0), 2)
-        cv2.imshow("Enter Duration", frame)
-
-        key = cv2.waitKey(1) & 0xFF
-        if key == 13:
-            try:
-                duration = int(duration_str)
-                if duration > 0:
-                    break
-            except ValueError:
-                pass
-            duration_str = ""
-        elif key in (8, 127):
-            duration_str = duration_str[:-1]
-        elif len(duration_str) < max_length and 48 <= key <= 57:
-            duration_str += chr(key)
-
-    cv2.destroyWindow("Enter Duration")
-    return int(duration_str)
-
-def get_random_position(width, height):
-    x = random.randint(min_edge_distance + circle_radius, width - min_edge_distance - circle_radius)
-    y = random.randint(min_edge_distance + circle_radius, height - min_edge_distance - circle_radius)
+# function to get a random position for the hand targets
+def randomPos(width, height):
+    x = random.randint(minEdgeDistance + circleRadius, width - minEdgeDistance - circleRadius)
+    y = random.randint(minEdgeDistance + circleRadius, height - minEdgeDistance - circleRadius)
     return (x, y)
 
-def get_random_knee_position(width, height):
-    x = random.randint(min_edge_distance + knee_circle_radius, width - min_edge_distance - knee_circle_radius)
-    y = height - knee_circle_radius - min_edge_distance  # Knee target near bottom edge
+# function to get a random position for the knee targets
+def randomKneePos(width, height):
+    x = random.randint(minEdgeDistance + kneeCircleRadius, width - minEdgeDistance - kneeCircleRadius)
+    y = height - kneeCircleRadius - minEdgeDistance  # knee target near bottom edge
     return (x, y)
 
-def is_body_part_in_circle(part_x, part_y, circle_x, circle_y, radius, scale_factor):
-    adjusted_radius = radius * scale_factor
-    dist_sq = (part_x - circle_x) ** 2 + (part_y - circle_y) ** 2
-    return dist_sq <= adjusted_radius ** 2
+# function to check if a body part is within the target circle
+def bodyInCircle(partX, partY, circleX, circleY, radius, scaleFactor):
+    adjustedR = radius * scaleFactor
+    distSq = (partX - circleX) ** 2 + (partY - circleY) ** 2
+    return distSq <= adjustedR ** 2
 
-def display_leaderboard():
+# function to display the leaderboard
+def displayLeaderboard():
     font = cv2.FONT_HERSHEY_SIMPLEX
     cv2.namedWindow('Leaderboard')
-    lead_bg = cv2.imread('leaderboard.jpg')
-    lead_bg = cv2.resize(lead_bg, (MACBOOK_WIDTH, MACBOOK_HEIGHT))
-    button_back = (490, 580, 300, 80)
-    back_clicked = False
+    leadBg = cv2.imread('leaderboard.jpg')
+    leadBg = cv2.resize(leadBg, (MACBOOK_WIDTH, MACBOOK_HEIGHT))
+    buttonBack = (490, 580, 300, 80)
+    backClicked = False
 
-    def mouse_callback(event, x, y, flags, param):
-        nonlocal back_clicked
+    # function to check mouse clicks on the back button
+    def mouseCallback(event, x, y, flags, param):
+        nonlocal backClicked
         if event == cv2.EVENT_LBUTTONDOWN:
-            if button_back[0] <= x <= button_back[0] + button_back[2] and button_back[1] <= y <= button_back[1] + button_back[3]:
-                back_clicked = True
+            if buttonBack[0] <= x <= buttonBack[0] + buttonBack[2] and buttonBack[1] <= y <= buttonBack[1] + buttonBack[3]:
+                backClicked = True
 
-    cv2.setMouseCallback('Leaderboard', mouse_callback)
+    cv2.setMouseCallback('Leaderboard', mouseCallback)
 
     while True:
-        frame = lead_bg.copy()
+        frame = leadBg.copy()
         try:
             with open('leaderboard.txt', 'r') as file:
                 entries = []
                 for line in file:
-                    # Expecting format: Name: score, Mode: X, Duration: Ys
+                    # Format - Name: score, Mode: 1/2, Duration: ns
                     parts = line.strip().split(',')
                     if len(parts) >= 3:
-                        name_score = parts[0].split(':')
-                        if len(name_score) == 2:
-                            name = name_score[0].strip()
-                            score_str = name_score[1].strip()
+                        nameScore = parts[0].split(':')
+                        if len(nameScore) == 2:
+                            name = nameScore[0].strip()
+                            scoreStr = nameScore[1].strip()
                             try:
-                                score_val = int(score_str)
+                                scoreVal = int(scoreStr)
                             except ValueError:
                                 continue
-                            mode_str = parts[1].strip()
-                            duration_str = parts[2].strip()
-                            entries.append((name, score_val, mode_str, duration_str))
-                # Sort by score descending
+                            modeStr = parts[1].strip()
+                            durationStr = parts[2].strip()
+                            entries.append((name, scoreVal, modeStr, durationStr))
+                # sort by score descending
                 entries.sort(key=lambda x: x[1], reverse=True)
                 entries = entries[:15]
                 lines = [f"{name}: {score} | {mode} | {duration}" for name, score, mode, duration in entries]
         except FileNotFoundError:
             lines = ["Leaderboard", "No leaderboard data yet."]
 
-        y_pos = 150
+        yPos = 150
         for line in lines:
-            text_size, _ = cv2.getTextSize(line, font, 0.7, 2)
-            x_pos = (MACBOOK_WIDTH - text_size[0]) // 2
-            cv2.putText(frame, line, (x_pos, y_pos), font, 0.7, (0, 0, 0), 2, cv2.LINE_AA)
-            y_pos += 29
+            textSize, _ = cv2.getTextSize(line, font, 0.7, 2)
+            xPos = (MACBOOK_WIDTH - textSize[0]) // 2
+            cv2.putText(frame, line, (xPos, yPos), font, 0.7, (0, 0, 0), 2, cv2.LINE_AA)
+            yPos += 29
 
         cv2.imshow('Leaderboard', frame)
 
-        if back_clicked:
+        if backClicked:
             cv2.destroyWindow('Leaderboard')
             main()
             return
@@ -305,21 +244,22 @@ def display_leaderboard():
             cv2.destroyWindow('Leaderboard')
             return
 
-def add_to_leaderboard(name, score, mode, duration):
+# function to add to leaderboard
+def addToLeaderboard(name, score, mode, duration):
     with open('leaderboard.txt', 'a') as file:
         file.write(f"{name}: {score}, Mode: {mode}, Duration: {duration}s\n")
 
-def capture_player_name(frame):
+# function to get player name
+def playerName(frame):
     font = cv2.FONT_HERSHEY_SIMPLEX
     name = ""
-    max_len = 20
-    frame_width, frame_height = frame.shape[1], frame.shape[0]
-    input_bg = cv2.imread('input.jpg')
-    input_bg = cv2.resize(input_bg, (MACBOOK_WIDTH, MACBOOK_HEIGHT))
+    maxLen = 20
+    inputBg = cv2.imread('input.jpg')
+    inputBg = cv2.resize(inputBg, (MACBOOK_WIDTH, MACBOOK_HEIGHT))
     cv2.namedWindow("Enter Name")
 
     while True:
-        frame = input_bg.copy()
+        frame = inputBg.copy()
         box_x1, box_y1 = 100, 150
         cv2.putText(frame, name, (box_x1 + 10, box_y1 + 110), font, 1, (0, 0, 0), 2, cv2.LINE_AA)
         if name.strip() == "":
@@ -332,47 +272,49 @@ def capture_player_name(frame):
             break
         elif key in (8, 127):
             name = name[:-1]
-        elif len(name) < max_len and 32 <= key <= 126:
+        elif len(name) < maxLen and 32 <= key <= 126:
             name += chr(key)
 
     cv2.destroyWindow("Enter Name")
     return name.strip()
 
-def capture_game_duration(frame):
+# function to get game duration
+def gameDuration(frame):
     font = cv2.FONT_HERSHEY_SIMPLEX
-    duration_str = ""
-    max_len = 4
-    dur_bg = cv2.imread('duration.jpg')
-    dur_bg = cv2.resize(dur_bg, (MACBOOK_WIDTH, MACBOOK_HEIGHT))
+    durationStr = ""
+    maxLen = 4
+    durBg = cv2.imread('duration.jpg')
+    durBg = cv2.resize(durBg, (MACBOOK_WIDTH, MACBOOK_HEIGHT))
     cv2.namedWindow("Enter Duration")
 
     while True:
-        frame = dur_bg.copy()
+        frame = durBg.copy()
         box_x1, box_y1 = 100, 150
-        cv2.putText(frame, duration_str, (box_x1 + 10, box_y1 + 110), font, 1, (0, 0, 0), 2, cv2.LINE_AA)
+        cv2.putText(frame, durationStr, (box_x1 + 10, box_y1 + 110), font, 1, (0, 0, 0), 2, cv2.LINE_AA)
 
         cv2.imshow("Enter Duration", frame)
         key = cv2.waitKey(1) & 0xFF
 
         if key == 13:
             try:
-                duration = int(duration_str)
+                duration = int(durationStr)
                 if duration > 0:
                     break
                 else:
-                    duration_str = ""
+                    durationStr = ""
             except ValueError:
-                duration_str = ""
+                durationStr = ""
         elif key in (8, 127):
-            duration_str = duration_str[:-1]
-        elif len(duration_str) < max_len and 48 <= key <= 57:
-            duration_str += chr(key)
+            durationStr = durationStr[:-1]
+        elif len(durationStr) < maxLen and 48 <= key <= 57:
+            durationStr += chr(key)
 
     cv2.destroyWindow("Enter Duration")
-    return int(duration_str)
+    return int(durationStr)
 
-def run_hands_only_mode():
-    global score, start_time, game_duration
+# function to run hands only mode
+def handsOnly():
+    global score, startTime, gameDuration
     score = 0
 
     cap = cv2.VideoCapture(1)
@@ -380,7 +322,7 @@ def run_hands_only_mode():
         print("Failed to open camera.")
         return
 
-    pose = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
+    pose = mpPose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
 
     ret, frame = cap.read()
     if not ret:
@@ -389,12 +331,15 @@ def run_hands_only_mode():
     frame = cv2.flip(frame, 1)
     h, w, _ = frame.shape
 
-    hand_circles = [get_random_position(w, h), get_random_position(w, h)]  # for left and right hand targets
+    handCircles = [
+        {"pos": randomPos(w, h), "lastHitTime": time.time()},
+        {"pos": randomPos(w, h), "lastHitTime": time.time()}
+    ]
 
-    player_name = capture_player_name(frame)
-    game_duration = capture_game_duration(frame)
+    name = playerName(frame)
+    duration = gameDuration(frame)
 
-    start_time = time.time()
+    startTime = time.time()
 
     while True:
         ret, frame = cap.read()
@@ -406,43 +351,51 @@ def run_hands_only_mode():
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
         if results.pose_landmarks:
-            mp_drawing.draw_landmarks(image, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
+            mpDrawing.draw_landmarks(image, results.pose_landmarks, mpPose.POSE_CONNECTIONS)
 
-            right_hand = results.pose_landmarks.landmark[mp_pose.PoseLandmark.RIGHT_WRIST]
-            left_hand = results.pose_landmarks.landmark[mp_pose.PoseLandmark.LEFT_WRIST]
+            rightHand = results.pose_landmarks.landmark[mpPose.PoseLandmark.RIGHT_WRIST]
+            leftHand = results.pose_landmarks.landmark[mpPose.PoseLandmark.LEFT_WRIST]
 
-            right_x, right_y = int(right_hand.x * w), int(right_hand.y * h)
-            left_x, left_y = int(left_hand.x * w), int(left_hand.y * h)
+            rightX, rightY = int(rightHand.x * w), int(rightHand.y * h)
+            leftX, leftY = int(leftHand.x * w), int(leftHand.y * h)
 
-           # Right hand duck target
-            x1, y1 = hand_circles[0][0] - duck_size // 2, hand_circles[0][1] - duck_size // 2
-            image = overlay_image_alpha(image, duck_img_right, (x1, y1))
+            now = time.time()
+            for i in range(2):
+                if now - handCircles[i]["lastHitTime"] > 8:
+                    handCircles[i]["pos"] = randomPos(w, h)
+                    handCircles[i]["lastHitTime"] = now
 
-            # Left hand duck target
-            x2, y2 = hand_circles[1][0] - duck_size // 2, hand_circles[1][1] - duck_size // 2
-            image = overlay_image_alpha(image, duck_img_left, (x2, y2))
+           # right hand duck target
+            x1, y1 = handCircles[0]["pos"][0] - duckSize // 2, handCircles[0]["pos"][1] - duckSize // 2
+            image = overlayImage(image, duckRight, (x1, y1))
 
-            # Draw outlined circles on actual detected hand positions
-            x_fire = right_x - fire_size // 2
-            y_fire = right_y - fire_size // 2
-            image = overlay_image_alpha(image, red_fire_img, (x_fire, y_fire))
+            # left hand duck target
+            x2, y2 = handCircles[1]["pos"][0] - duckSize // 2, handCircles[1]["pos"][1] - duckSize // 2
+            image = overlayImage(image, duckLeft, (x2, y2))
 
-            # Similarly for left hand:
-            x_fire = left_x - fire_size // 2
-            y_fire = left_y - fire_size // 2
-            image = overlay_image_alpha(image, green_fire_img, (x_fire, y_fire))
+            # fire images for hands
+            fireX = rightX - fireSize // 2
+            fireY = rightY - fireSize // 2
+            image = overlayImage(image, redFire, (fireX, fireY))
 
-            # Check hits for hands: Right hand hits hand_circles[0], Left hand hits hand_circles[1]
-            right_hit = is_body_part_in_circle(right_x, right_y, hand_circles[0][0], hand_circles[0][1], circle_radius, hitbox_scale_factor)
-            left_hit = is_body_part_in_circle(left_x, left_y, hand_circles[1][0], hand_circles[1][1], circle_radius, hitbox_scale_factor)
+            fireX = leftX - fireSize // 2
+            fireY = leftY - fireSize // 2
+            image = overlayImage(image, greenFire, (fireX, fireY))
 
-            if right_hit and left_hit:
+            # Check if hands in targets
+            rightHit = bodyInCircle(rightX, rightY, handCircles[0]["pos"][0], handCircles[0]["pos"][1], circleRadius, hitboxScaleFactor)
+            leftHit = bodyInCircle(leftX, leftY, handCircles[1]["pos"][0], handCircles[1]["pos"][1], circleRadius, hitboxScaleFactor)
+
+            if rightHit and leftHit:
+                handCircles[0]["pos"] = randomPos(w, h)
+                handCircles[1]["pos"] = randomPos(w, h)
+                handCircles[0]["lastHitTime"] = time.time()
+                handCircles[1]["lastHitTime"] = time.time()
                 quack.play()
                 score += 1
-                hand_circles = [get_random_position(w, h), get_random_position(w, h)]  # move circles
 
-        elapsed = int(time.time() - start_time)
-        remaining = max(0, game_duration - elapsed)
+        elapsed = int(time.time() - startTime)
+        remaining = max(0, duration - elapsed)
 
         cv2.putText(image, f"Time Left: {remaining}s", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
         cv2.putText(image, f"Score: {score}", (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 128, 0), 2)
@@ -455,35 +408,36 @@ def run_hands_only_mode():
     cap.release()
     cv2.destroyWindow("Hands Only Mode")
 
-    add_to_leaderboard(player_name, score, 1, game_duration)
+    addToLeaderboard(name, score, 1, duration)
 
-    # Load and rank leaderboard
-    leaderboard_entries = []
-    leaderboard_entries = []
+    # rank leaderboard
+    leaderboardEntries = []
+
     try:
         with open('leaderboard.txt', 'r') as file:
             for line in file:
                 parts = line.strip().split(',')
                 if len(parts) >= 1:
-                    name_score = parts[0].split(':')
-                    if len(name_score) == 2:
-                        name = name_score[0].strip()
+                    nameScore = parts[0].split(':')
+                    if len(nameScore) == 2:
+                        name = nameScore[0].strip()
                         try:
-                            score_val = int(name_score[1].strip())
-                            leaderboard_entries.append((name, score_val))
+                            scoreVal = int(nameScore[1].strip())
+                            leaderboardEntries.append((name, scoreVal))
                         except ValueError:
                             continue
     except FileNotFoundError:
         pass
 
-    # Sort and determine rank
-    leaderboard_entries.sort(key=lambda x: x[1], reverse=True)
-    rank = next((i + 1 for i, entry in enumerate(leaderboard_entries) if entry[0] == player_name and entry[1] == score), None)
+    # sort and determine rank
+    leaderboardEntries.sort(key=lambda x: x[1], reverse=True)
+    rank = next((i + 1 for i, entry in enumerate(leaderboardEntries) if entry[0] == name and entry[1] == score), None)
 
-    display_game_over_screen(score, rank)
+    displayGameOver(score, rank)
 
-def run_hands_and_feet_mode():
-    global score, start_time, game_duration
+# function to run hands and feet mode
+def runHandsFeet():
+    global score, startTime, gameDuration
     score = 0
 
     cap = cv2.VideoCapture(1)
@@ -491,7 +445,7 @@ def run_hands_and_feet_mode():
         print("Failed to open camera.")
         return
 
-    pose = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
+    pose = mpPose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
 
     ret, frame = cap.read()
     if not ret:
@@ -500,14 +454,20 @@ def run_hands_and_feet_mode():
     frame = cv2.flip(frame, 1)
     h, w, _ = frame.shape
 
-    hand_circles = [get_random_position(w, h), get_random_position(w, h)]
-    left_knee_circle = get_random_knee_position(w, h)   # Yellow circle for left knee
-    right_knee_circle = get_random_knee_position(w, h)  # Blue circle for right knee
+    handCircles = [
+        {"pos": randomPos(w, h), "lastHitTime": time.time()},
+        {"pos": randomPos(w, h), "lastHitTime": time.time()}
+    ]
 
-    player_name = capture_player_name(frame)
-    game_duration = capture_game_duration(frame)
+    leftKneeCircle = randomKneePos(w, h)
+    rightKneeCircle = randomKneePos(w, h)
+    leftKneeLastHitTime = time.time()
+    rightKneeLastHitTime = time.time()
 
-    start_time = time.time()
+    name = playerName(frame)
+    duration = gameDuration(frame)
+
+    startTime = time.time()
 
     while True:
         ret, frame = cap.read()
@@ -519,77 +479,94 @@ def run_hands_and_feet_mode():
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
         if results.pose_landmarks:
-            mp_drawing.draw_landmarks(image, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
+            mpDrawing.draw_landmarks(image, results.pose_landmarks, mpPose.POSE_CONNECTIONS)
 
-            right_hand = results.pose_landmarks.landmark[mp_pose.PoseLandmark.RIGHT_WRIST]
-            left_hand = results.pose_landmarks.landmark[mp_pose.PoseLandmark.LEFT_WRIST]
-            right_knee = results.pose_landmarks.landmark[mp_pose.PoseLandmark.RIGHT_KNEE]
-            left_knee = results.pose_landmarks.landmark[mp_pose.PoseLandmark.LEFT_KNEE]
+            rightHand = results.pose_landmarks.landmark[mpPose.PoseLandmark.RIGHT_WRIST]
+            leftHand = results.pose_landmarks.landmark[mpPose.PoseLandmark.LEFT_WRIST]
+            rightKnee = results.pose_landmarks.landmark[mpPose.PoseLandmark.RIGHT_KNEE]
+            leftKnee = results.pose_landmarks.landmark[mpPose.PoseLandmark.LEFT_KNEE]
 
-            right_x, right_y = int(right_hand.x * w), int(right_hand.y * h)
-            left_x, left_y = int(left_hand.x * w), int(left_hand.y * h)
-            right_knee_x, right_knee_y = int(right_knee.x * w), int(right_knee.y * h)
-            left_knee_x, left_knee_y = int(left_knee.x * w), int(left_knee.y * h)
+            rightX, rightY = int(rightHand.x * w), int(rightHand.y * h)
+            leftX, leftY = int(leftHand.x * w), int(leftHand.y * h)
+            rightKneeX, rightKneeY = int(rightKnee.x * w), int(rightKnee.y * h)
+            leftKneeX, leftKneeY = int(leftKnee.x * w), int(leftKnee.y * h)
 
-            # Right hand duck target
-            x1, y1 = hand_circles[0][0] - duck_size // 2, hand_circles[0][1] - duck_size // 2
-            image = overlay_image_alpha(image, duck_img_right, (x1, y1))
+            now = time.time()
+            for i in range(2):
+                if now - handCircles[i]["lastHitTime"] > 8:
+                    handCircles[i]["pos"] = randomPos(w, h)
+                    handCircles[i]["lastHitTime"] = now
 
-            # Left hand duck target
-            x2, y2 = hand_circles[1][0] - duck_size // 2, hand_circles[1][1] - duck_size // 2
-            image = overlay_image_alpha(image, duck_img_left, (x2, y2))
+            if now - leftKneeLastHitTime > 8:
+                leftKneeCircle = randomKneePos(w, h)
+                leftKneeLastHitTime = now
 
-            # Draw the knee target circles:
-            # Draw duck images for knee targets using overlay_image_alpha
-            x, y = left_knee_circle[0] - duck_size // 2, left_knee_circle[1] - duck_size // 2
-            image = overlay_image_alpha(image, duck_img_yellow, (x, y))
+            if now - rightKneeLastHitTime > 8:
+                rightKneeCircle = randomKneePos(w, h)
+                rightKneeLastHitTime = now
 
-            x, y = right_knee_circle[0] - duck_size // 2, right_knee_circle[1] - duck_size // 2
-            image = overlay_image_alpha(image, duck_img_blue, (x, y))
+            # right hand duck target
+            x1, y1 = handCircles[0]["pos"][0] - duckSize // 2, handCircles[0]["pos"][1] - duckSize // 2
+            image = overlayImage(image, duckRight, (x1, y1))
 
-            # Draw player's feet
-            x_fire = right_knee_x - fire_size // 2
-            y_fire = right_knee_y - fire_size // 2
-            image = overlay_image_alpha(image, blue_fire_img, (x_fire, y_fire))
+            # left hand duck target
+            x2, y2 = handCircles[1]["pos"][0] - duckSize // 2, handCircles[1]["pos"][1] - duckSize // 2
+            image = overlayImage(image, duckLeft, (x2, y2))
 
-            x_fire = left_knee_x - fire_size // 2
-            y_fire = left_knee_y - fire_size // 2
-            image = overlay_image_alpha(image, yellow_fire_img, (x_fire, y_fire))
+            # knee targets
+            x, y = leftKneeCircle[0] - duckSize // 2, leftKneeCircle[1] - duckSize // 2
+            image = overlayImage(image, duckYellow, (x, y))
 
-            # Draw hand targets
-            x_fire = right_x - fire_size // 2
-            y_fire = right_y - fire_size // 2
-            image = overlay_image_alpha(image, red_fire_img, (x_fire, y_fire))
+            x, y = rightKneeCircle[0] - duckSize // 2, rightKneeCircle[1] - duckSize // 2
+            image = overlayImage(image, duckBlue, (x, y))
 
-            # Similarly for left hand:
-            x_fire = left_x - fire_size // 2
-            y_fire = left_y - fire_size // 2
-            image = overlay_image_alpha(image, green_fire_img, (x_fire, y_fire))
+            # fire images for knees
+            fireX = rightKneeX - fireSize // 2
+            fireY = rightKneeY - fireSize // 2
+            image = overlayImage(image, blueFire, (fireX, fireY))
 
-            # Check hits for hands
-            left_hand_hit = is_body_part_in_circle(left_x, left_y, hand_circles[1][0], hand_circles[1][1], circle_radius, hitbox_scale_factor)
-            right_hand_hit = is_body_part_in_circle(right_x, right_y, hand_circles[0][0], hand_circles[0][1], circle_radius, hitbox_scale_factor)
+            fireX = leftKneeX - fireSize // 2
+            fireY = leftKneeY - fireSize // 2
+            image = overlayImage(image, yellowFire, (fireX, fireY))
 
-            # Check hits for knees
-            left_knee_hit = is_body_part_in_circle(left_knee_x, left_knee_y, left_knee_circle[0], left_knee_circle[1], knee_circle_radius, knee_hitbox_scale_factor)
-            right_knee_hit = is_body_part_in_circle(right_knee_x, right_knee_y, right_knee_circle[0], right_knee_circle[1], knee_circle_radius, knee_hitbox_scale_factor)
+            # fire images for hands
+            fireX = rightX - fireSize // 2
+            fireY = rightY - fireSize // 2
+            image = overlayImage(image, redFire, (fireX, fireY))
 
-            # Score and move targets if both hands hit OR both knees hit
-            if (left_hand_hit and right_hand_hit) or (left_knee_hit and right_knee_hit):
+            fireX = leftX - fireSize // 2
+            fireY = leftY - fireSize // 2
+            image = overlayImage(image, greenFire, (fireX, fireY))
+
+            # hit for hands
+            leftHandHit = bodyInCircle(leftX, leftY, handCircles[1]["pos"][0], handCircles[1]["pos"][1], circleRadius, hitboxScaleFactor)
+            rightHandHit = bodyInCircle(rightX, rightY, handCircles[0]["pos"][0], handCircles[0]["pos"][1], circleRadius, hitboxScaleFactor)
+
+            # hit for knees
+            leftKneeHit = bodyInCircle(leftKneeX, leftKneeY, leftKneeCircle[0], leftKneeCircle[1], kneeCircleRadius, kneeHitboxScaleFactor)
+            rightKneeHit = bodyInCircle(rightKneeX, rightKneeY, rightKneeCircle[0], rightKneeCircle[1], kneeCircleRadius, kneeHitboxScaleFactor)
+
+            # move targets if both hands hit or both knees hit
+            if (leftHandHit and rightHandHit) or (leftKneeHit and rightKneeHit):
                 quack.play()
                 score += 1
 
-                if left_hand_hit and right_hand_hit:
-                    # Move hand targets only
-                    hand_circles = [get_random_position(w, h), get_random_position(w, h)]
+                # move hand targets only
+                if leftHandHit and rightHandHit:
+                    handCircles = [
+                        {"pos": randomPos(w, h), "lastHitTime": time.time()},
+                        {"pos": randomPos(w, h), "lastHitTime": time.time()}
+                    ]
 
-                if left_knee_hit and right_knee_hit:
-                    # Move knee targets only
-                    left_knee_circle = get_random_knee_position(w, h)   # Yellow circle for left knee
-                    right_knee_circle = get_random_knee_position(w, h)  # Blue circle for right knee
+                # move knee targets only
+                if leftKneeHit and rightKneeHit:
+                    leftKneeCircle = randomKneePos(w, h)
+                    rightKneeCircle = randomKneePos(w, h)
+                    leftKneeLastHitTime = now
+                    rightKneeLastHitTime = now
 
-        elapsed = int(time.time() - start_time)
-        remaining = max(0, game_duration - elapsed)
+        elapsed = int(time.time() - startTime)
+        remaining = max(0, duration - elapsed)
 
         cv2.putText(image, f"Time Left: {remaining}s", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
         cv2.putText(image, f"Score: {score}", (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 128, 0), 2)
@@ -602,41 +579,42 @@ def run_hands_and_feet_mode():
     cap.release()
     cv2.destroyWindow("Hands and Feet Mode")
 
-    add_to_leaderboard(player_name, score, 2, game_duration)
+    addToLeaderboard(name, score, 2, duration)
     
-    # Load and rank leaderboard
-    leaderboard_entries = []
-    leaderboard_entries = []
+    # rank leaderboard
+    leaderboardEntries = []
+
     try:
         with open('leaderboard.txt', 'r') as file:
             for line in file:
                 parts = line.strip().split(',')
                 if len(parts) >= 1:
-                    name_score = parts[0].split(':')
-                    if len(name_score) == 2:
-                        name = name_score[0].strip()
+                    nameScore = parts[0].split(':')
+                    if len(nameScore) == 2:
+                        name = nameScore[0].strip()
                         try:
-                            score_val = int(name_score[1].strip())
-                            leaderboard_entries.append((name, score_val))
+                            scoreVal = int(nameScore[1].strip())
+                            leaderboardEntries.append((name, scoreVal))
                         except ValueError:
                             continue
     except FileNotFoundError:
         pass
 
-    # Sort and determine rank
-    leaderboard_entries.sort(key=lambda x: x[1], reverse=True)
-    rank = next((i + 1 for i, entry in enumerate(leaderboard_entries) if entry[0] == player_name and entry[1] == score), None)
-    display_game_over_screen(score, rank)
+    # sort and determine rank
+    leaderboardEntries.sort(key=lambda x: x[1], reverse=True)
+    rank = next((i + 1 for i, entry in enumerate(leaderboardEntries) if entry[0] == name and entry[1] == score), None)
+    displayGameOver(score, rank)
 
+# main function to run the game
 def main():
     while True:
-        choice = display_menu()
-        if choice == "hands_only":
-            run_hands_only_mode()
-        elif choice == "hands_and_feet":
-            run_hands_and_feet_mode()
+        choice = displayMenu()
+        if choice == "handsOnly":
+            handsOnly()
+        elif choice == "handsFeet":
+            runHandsFeet()
         elif choice == "leaderboard":
-            display_leaderboard()
+            displayLeaderboard()
         else:
             pygame.mixer.music.stop()
             break
